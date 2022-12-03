@@ -1,5 +1,6 @@
 package commons;
 
+import org.springframework.core.codec.StringDecoder;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBuffer;
@@ -14,6 +15,7 @@ import java.io.*;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.stream.BaseStream;
 import java.util.stream.Stream;
 
@@ -23,6 +25,16 @@ public class GetInput {
 
     public static Path basePath = Path.of("src/main/resources/input");
 
+    public static Flux<String> getLines(int day ) throws IOException {
+        Path filePath = getFilePath(day);
+        StringDecoder decoder = StringDecoder.textPlainOnly();
+        return DataBufferUtils.readAsynchronousFileChannel(
+                        () -> AsynchronousFileChannel.open(filePath, StandardOpenOption.READ),
+                        DefaultDataBufferFactory.sharedInstance,
+                        16)
+                .transform(dataBufferFlux ->
+                        decoder.decode(dataBufferFlux, null, null, null));
+    }
     public static Mono<String> getInputFromClient(int day ) {
         // does not really work, need a way to authenticate
         WebClient webClient = adventOfCodeClient();
@@ -102,33 +114,6 @@ public class GetInput {
     static Path getFilePath(int day){
         String file = String.format("day_%s.txt", day);
         return basePath.resolve(file);
-    }
-
-
-    public static Flux<String> getLocalInputForStackOverflow(String filePath) throws IOException {
-        Path dayPath = Path.of(filePath);
-        FileOutputStream resultDay = new FileOutputStream(basePath.resolve("result_day.txt").toFile());
-
-        return DataBufferUtils
-                .readAsynchronousFileChannel(
-                        () -> AsynchronousFileChannel.open(dayPath),
-                        new DefaultDataBufferFactory(),
-                        64)
-                .map(DataBuffer::asInputStream)
-                .map(db -> {
-                    try {
-                        resultDay.write(db.readAllBytes());
-                        resultDay.write("\n".getBytes());
-                        return db;
-                    } catch (FileNotFoundException e) {
-                        throw new RuntimeException(e);
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                })
-                .map(InputStreamReader::new)
-                .map(is ->new BufferedReader(is).lines())
-                .flatMap(Flux::fromStream);
     }
 
 }

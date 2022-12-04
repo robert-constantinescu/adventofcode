@@ -35,6 +35,29 @@ public class GetInput {
                 .transform(dataBufferFlux ->
                         decoder.decode(dataBufferFlux, null, null, null));
     }
+
+
+    public static Flux<String> lines(int day ) throws IOException {
+        Path dayPath = getFilePath(day);
+        return Flux.using(
+
+                // resource factory creates FileReader instance
+                () -> new FileReader("/path/to/file.txt"),
+
+                // transformer function turns the FileReader into a Flux
+                reader -> Flux.fromStream(new BufferedReader(reader).lines()),
+
+                // resource cleanup function closes the FileReader when the Flux is complete
+                reader -> {
+                    try {
+                        reader.close();
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+        );
+    }
+
     public static Mono<String> getInputFromClient(int day ) {
         // does not really work, need a way to authenticate
         WebClient webClient = adventOfCodeClient();
@@ -95,13 +118,6 @@ public class GetInput {
                     return bytes;
                 });
 
-    }
-
-    public static Flux<String> getLocalInput1(int day ) throws IOException {
-        Path dayPath = getFilePath(day);
-        return Flux.using(() -> Files.lines(dayPath),
-                Flux::fromStream,
-                BaseStream::close);
     }
 
     public static Flux<DataBuffer> getLocalInput2(int day ) throws IOException {
